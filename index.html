@@ -4,45 +4,317 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Open Fap Roulette</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#c00">
   <style>
-    body { font-family: Arial, sans-serif; background: #111; color: #fff; text-align: center; padding: 20px; }
-    #roll-btn { padding: 20px 40px; font-size: 2rem; background: #c00; border: none; border-radius: 50%; cursor: pointer; margin: 30px; }
-    #result { font-size: 3rem; margin: 20px; }
-    img { max-width: 90%; border: 5px solid #c00; border-radius: 10px; }
+    body {
+      font-family: Arial, sans-serif;
+      background: #111;
+      color: #fff;
+      text-align: center;
+      margin: 0;
+      padding: 20px;
+      line-height: 1.4;
+    }
+    h1 { color: #c00; margin: 10px 0 5px; }
+    button {
+      background: #c00;
+      color: white;
+      border: none;
+      padding: 15px 30px;
+      font-size: 1.8rem;
+      border-radius: 50px;
+      cursor: pointer;
+      margin: 15px;
+    }
+    button:hover { background: #f00; }
+    #result {
+      background: #1a1a1a;
+      padding: 25px;
+      border-radius: 15px;
+      margin: 20px auto;
+      max-width: 700px;
+      font-size: 1.4rem;
+    }
+    .rule {
+      margin: 12px 0;
+      padding: 12px;
+      background: #222;
+      border-radius: 8px;
+      text-align: left;
+    }
+    .rule strong { color: #c00; }
+    #roulette-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      justify-content: center;
+      margin: 30px 0;
+    }
+    .roulette-item {
+      background: #222;
+      padding: 12px 18px;
+      border-radius: 10px;
+      min-width: 220px;
+      cursor: pointer;
+    }
+    .roulette-item.active {
+      border: 3px solid #c00;
+    }
+    #edit-panel {
+      display: none;
+      background: #1a1a1a;
+      padding: 25px;
+      border-radius: 15px;
+      max-width: 900px;
+      margin: 30px auto;
+      text-align: left;
+    }
+    .category {
+      margin: 25px 0;
+    }
+    .category h3 {
+      color: #c00;
+      margin-bottom: 10px;
+    }
+    input[type="text"] {
+      width: 100%;
+      padding: 10px;
+      margin: 5px 0;
+      background: #333;
+      color: white;
+      border: 1px solid #c00;
+      border-radius: 6px;
+      font-size: 1rem;
+    }
+    #edit-image-upload { margin: 15px 0; }
+    .hidden { display: none; }
   </style>
 </head>
 <body>
   <h1>🍆 Open Fap Roulette</h1>
-  <p>Appuie sur Roll pour laisser le hasard décider !</p>
-  
-  <button id="roll-btn">ROLL 🎲</button>
-  
-  <div id="result"></div>
-  <img id="roulette-img" src="" alt="Roulette">
-  
-  <script>
-    // Tes images de roulettes (ajoute-les dans le dossier /images ou utilise des URLs externes)
-    const roulettes = [
-      "https://exemple.com/roulette1.png", // ← Remplace par tes vraies images
-      "https://exemple.com/roulette2.png",
-      // Ajoute-en 20-50 pour que ce soit fun
-    ];
+  <p style="max-width:600px;margin:0 auto 20px;">Crée tes propres règles textuelles (W/X/Y/Z) • Tout est sauvegardé dans ton navigateur • Fonctionne hors ligne</p>
 
-    document.getElementById("roll-btn").addEventListener("click", () => {
-      // Génère W X Y Z entre 1 et 10 (tu peux adapter la plage selon tes images)
+  <!-- Sélecteur de roulette actuelle -->
+  <select id="current-select" onchange="switchCurrent()" style="padding:12px;font-size:1.1rem;background:#222;color:white;border:2px solid #c00;border-radius:8px;">
+    <!-- rempli par JS -->
+  </select>
+
+  <button id="roll-btn">ROLL 🎲</button>
+
+  <div id="result">
+    <p style="color:#666;">Appuie sur ROLL pour commencer !</p>
+  </div>
+
+  <button onclick="createNewRoulette()">➕ Nouvelle roulette</button>
+
+  <h2 style="margin-top:40px;">Mes roulettes sauvegardées</h2>
+  <div id="roulette-list"></div>
+
+  <!-- Panneau d'édition -->
+  <div id="edit-panel">
+    <h2>Édition : <span id="editing-name"></span></h2>
+    
+    <label>Nom de la roulette :</label>
+    <input type="text" id="edit-name" placeholder="Nom de ta roulette">
+
+    <div class="category">
+      <h3>W (positions 1 à 10)</h3>
+      <div id="w-inputs"></div>
+    </div>
+    <div class="category">
+      <h3>X (positions 1 à 10)</h3>
+      <div id="x-inputs"></div>
+    </div>
+    <div class="category">
+      <h3>Y (positions 1 à 10)</h3>
+      <div id="y-inputs"></div>
+    </div>
+    <div class="category">
+      <h3>Z (positions 1 à 10)</h3>
+      <div id="z-inputs"></div>
+    </div>
+
+    <button onclick="saveEdit()">💾 Sauvegarder les modifications</button>
+    <button onclick="closeEdit()" style="background:#444;">Annuler</button>
+  </div>
+
+  <script>
+    let roulettes = JSON.parse(localStorage.getItem('roulettes')) || [];
+    let currentIndex = 0; // index de la roulette actuellement utilisée pour le roll
+
+    // Création d'une roulette par défaut si aucune n'existe
+    if (roulettes.length === 0) {
+      roulettes = [{
+        id: Date.now(),
+        name: "Roulette par défaut",
+        wRules: Array.from({length:10}, (_,i) => `Règle W${i+1} (modifie-moi !)`),
+        xRules: Array.from({length:10}, (_,i) => `Règle X${i+1} (modifie-moi !)`),
+        yRules: Array.from({length:10}, (_,i) => `Règle Y${i+1} (modifie-moi !)`),
+        zRules: Array.from({length:10}, (_,i) => `Règle Z${i+1} (modifie-moi !)`)
+      }];
+      saveRoulettes();
+    }
+
+    function saveRoulettes() {
+      localStorage.setItem('roulettes', JSON.stringify(roulettes));
+    }
+
+    function renderList() {
+      const list = document.getElementById('roulette-list');
+      list.innerHTML = '';
+      const select = document.getElementById('current-select');
+      select.innerHTML = '';
+
+      roulettes.forEach((r, i) => {
+        // Liste visuelle
+        const div = document.createElement('div');
+        div.className = `roulette-item ${i === currentIndex ? 'active' : ''}`;
+        div.innerHTML = `
+          <strong>${r.name}</strong><br>
+          <small>${r.wRules.length} règles par catégorie</small>
+          <div style="margin-top:8px;">
+            <button onclick="event.stopImmediatePropagation(); editRoulette(${i});" style="font-size:0.9rem;padding:6px 12px;">✏️ Éditer</button>
+            <button onclick="event.stopImmediatePropagation(); deleteRoulette(${i});" style="font-size:0.9rem;padding:6px 12px;background:#333;">🗑️</button>
+          </div>
+        `;
+        div.onclick = () => switchToRoulette(i);
+        list.appendChild(div);
+
+        // Select
+        const opt = document.createElement('option');
+        opt.value = i;
+        opt.textContent = r.name;
+        if (i === currentIndex) opt.selected = true;
+        select.appendChild(opt);
+      });
+    }
+
+    function switchCurrent() {
+      currentIndex = parseInt(document.getElementById('current-select').value);
+      renderList();
+    }
+
+    function switchToRoulette(i) {
+      currentIndex = i;
+      renderList();
+      document.getElementById('current-select').value = i;
+    }
+
+    function editRoulette(i) {
+      currentIndex = i; // on passe en édition sur cette roulette
+      const r = roulettes[i];
+      document.getElementById('edit-panel').style.display = 'block';
+      document.getElementById('editing-name').textContent = r.name;
+      document.getElementById('edit-name').value = r.name;
+
+      const cats = ['w','x','y','z'];
+      cats.forEach(cat => {
+        const container = document.getElementById(cat + '-inputs');
+        container.innerHTML = '';
+        for (let j = 0; j < 10; j++) {
+          const label = document.createElement('div');
+          label.style.margin = '8px 0 4px';
+          label.innerHTML = `
+            <strong>${cat.toUpperCase()}${j+1} :</strong>
+            <input type="text" id="${cat}-${j}" value="${r[cat + 'Rules'][j]}" style="width:100%;margin-top:4px;">
+          `;
+          container.appendChild(label);
+        }
+      });
+    }
+
+    function saveEdit() {
+      const i = currentIndex;
+      const r = roulettes[i];
+      r.name = document.getElementById('edit-name').value || "Sans nom";
+
+      const cats = ['w','x','y','z'];
+      cats.forEach(cat => {
+        for (let j = 0; j < 10; j++) {
+          const input = document.getElementById(cat + '-' + j);
+          if (input) r[cat + 'Rules'][j] = input.value;
+        }
+      });
+
+      saveRoulettes();
+      closeEdit();
+      renderList();
+      alert('✅ Roulette sauvegardée !');
+    }
+
+    function closeEdit() {
+      document.getElementById('edit-panel').style.display = 'none';
+    }
+
+    function deleteRoulette(i) {
+      if (confirm('Supprimer cette roulette ?')) {
+        if (i === currentIndex) currentIndex = 0;
+        roulettes.splice(i, 1);
+        if (roulettes.length === 0) {
+          // recréer une par défaut
+          roulettes = [{
+            id: Date.now(),
+            name: "Roulette par défaut",
+            wRules: Array.from({length:10}, (_,k) => `Règle W${k+1}`),
+            xRules: Array.from({length:10}, (_,k) => `Règle X${k+1}`),
+            yRules: Array.from({length:10}, (_,k) => `Règle Y${k+1}`),
+            zRules: Array.from({length:10}, (_,k) => `Règle Z${k+1}`)
+          }];
+        }
+        saveRoulettes();
+        renderList();
+      }
+    }
+
+    function createNewRoulette() {
+      const newRoulette = {
+        id: Date.now(),
+        name: "Nouvelle roulette " + (roulettes.length + 1),
+        wRules: Array.from({length:10}, (_,i) => `Règle W${i+1}`),
+        xRules: Array.from({length:10}, (_,i) => `Règle X${i+1}`),
+        yRules: Array.from({length:10}, (_,i) => `Règle Y${i+1}`),
+        zRules: Array.from({length:10}, (_,i) => `Règle Z${i+1}`)
+      };
+      roulettes.push(newRoulette);
+      saveRoulettes();
+      renderList();
+      // ouvre directement l'édition
+      editRoulette(roulettes.length - 1);
+    }
+
+    // === LE ROLL ===
+    document.getElementById('roll-btn').addEventListener('click', () => {
+      if (roulettes.length === 0) return alert("Aucune roulette !");
+
+      const r = roulettes[currentIndex];
       const w = Math.floor(Math.random() * 10) + 1;
       const x = Math.floor(Math.random() * 10) + 1;
       const y = Math.floor(Math.random() * 10) + 1;
       const z = Math.floor(Math.random() * 10) + 1;
-      
-      const randomImg = roulettes[Math.floor(Math.random() * roulettes.length)];
-      
-      document.getElementById("result").innerHTML = `
-        <strong>W${w} • X${x} • Y${y} • Z${z}</strong><br>
-        <small>Applique ces chiffres sur l’image ci-dessous !</small>
+
+      const resultDiv = document.getElementById('result');
+      resultDiv.innerHTML = `
+        <h2 style="color:#c00;margin:0 0 20px;">🎲 W${w} • X${x} • Y${y} • Z${z}</h2>
+        <div class="rule"><strong>W${w} :</strong> ${r.wRules[w-1]}</div>
+        <div class="rule"><strong>X${x} :</strong> ${r.xRules[x-1]}</div>
+        <div class="rule"><strong>Y${y} :</strong> ${r.yRules[y-1]}</div>
+        <div class="rule"><strong>Z${z} :</strong> ${r.zRules[z-1]}</div>
+        <small style="color:#666;">Roulette utilisée : ${r.name}</small>
       `;
-      document.getElementById("roulette-img").src = randomImg;
     });
+
+    // Initialisation
+    renderList();
+    // Premier roll automatique pour tester (optionnel)
+    // document.getElementById('roll-btn').click();
+
+    // Service Worker (PWA)
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').then(() => {
+        console.log('✅ PWA installée !');
+      });
+    }
   </script>
 </body>
 </html>
