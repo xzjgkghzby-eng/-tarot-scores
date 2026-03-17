@@ -1,22 +1,22 @@
 {
-    "name": "Compteur Tarot",
-    "short_name": "Tarot",
-    "description": "Compteur de points pour le jeu de Tarot",
-    "start_url": "/",
-    "display": "standalone",
-    "background_color": "#f2f2f7",
-    "theme_color": "#FF6B00",
-    "orientation": "portrait",
-    "icons": [
-        {
-            "src": "icon-192.png",
-            "sizes": "192x192",
-            "type": "image/png"
-        },
-        {
-            "src": "icon-512.png",
-            "sizes": "512x512",
-            "type": "image/png"
-        }
-    ]
+  "name": "Open Fap Roulette",
+  "short_name": "FapRoulette",
+  "description": "La roulette NSFW ultime – créée par toi, jouée par toi",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#111111",
+  "theme_color": "#c00",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
 }
